@@ -204,7 +204,8 @@ class FoundationIT {
       mvc.perform(post(path).header("Authorization", "Bearer " + token))
           .andExpect(status().isForbidden());
     mvc.perform(get("/api/v1/equipment").header("Authorization", "Bearer " + token))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(0));
   }
 
   @Test
@@ -216,9 +217,10 @@ class FoundationIT {
         .andExpect(status().isForbidden());
     mvc.perform(get("/api/v1/labs/1/admins").header("Authorization", "Bearer " + token))
         .andExpect(status().isForbidden());
-    // 通过角色门禁后为 404，资源 CRUD 尚未实现；不能将此当作设备业务成功。
+    // 阶段 2 已有资源控制器；无分配时仍能查询，但只返回空列表。
     mvc.perform(get("/api/v1/labs").header("Authorization", "Bearer " + token))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(0));
   }
 
   @Test

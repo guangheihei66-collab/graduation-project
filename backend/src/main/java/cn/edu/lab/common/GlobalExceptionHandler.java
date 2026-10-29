@@ -29,7 +29,10 @@ public class GlobalExceptionHandler {
   @ExceptionHandler({
     MethodArgumentNotValidException.class,
     HttpMessageNotReadableException.class,
-    ConstraintViolationException.class
+    ConstraintViolationException.class,
+    org.springframework.web.method.annotation.HandlerMethodValidationException.class,
+    org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+    org.springframework.validation.BindException.class
   })
   ResponseEntity<ApiResponse<Void>> invalid(Exception e) {
     return error(ErrorCode.VALIDATION_ERROR);

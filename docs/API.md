@@ -2,7 +2,7 @@
 
 ## 1. 协议约定
 
-阶段 1 已实现 POST /auth/login、GET /auth/me，另增加匿名 GET /health 数据库健康检查；本文件其余接口仍为待实现设计。基础路径 /api/v1，JSON 编码 UTF-8，除登录及绑定接口外使用 Authorization: Bearer <JWT>。ID 使用字符串；业务时区 Asia/Shanghai，时间例：2026-11-01T09:00:00+08:00。服务端拒绝无偏移或非 +08:00 的业务时间，客户端显示北京时间。
+阶段 1 已实现认证与匿名 GET /health 数据库健康检查；阶段 2 已实现下列用户、实验室、管理员分配及设备管理接口。微信认证、/equipment/{id}/slots、预约与统计仍为待实现设计。基础路径 /api/v1，JSON 编码 UTF-8，除登录及绑定接口外使用 Authorization: Bearer <JWT>。ID 使用字符串；业务时区 Asia/Shanghai，时间例：2026-11-01T09:00:00+08:00。服务端拒绝无偏移或非 +08:00 的业务时间，客户端显示北京时间。
 
 成功使用 HTTP 200，创建资源使用 201；统一响应：
 
@@ -47,7 +47,7 @@
 | PATCH /equipment/{id} | L 范围/A | name、category、model、location、description、status；不修改归属或资产编号 |
 | GET /equipment/{id}/slots | S/L/A | date，返回当天占用时间段；S 仅可预约设备，L 限范围；无申请人和用途 |
 
-枚举见数据库文档。PATCH 未传字段保持原值，可空字段允许显式 null；空字符串不得代替必填值。资源停用不删除历史，历史预约详情仍能显示其资源信息。接口无 DELETE 资源操作。
+枚举见数据库文档。PATCH 未传字段保持原值，可空字段允许显式 null；本阶段可清空字段仅为实验室 description、设备 model 和 description。必填字段显式 null、空白必填字符串、空 PATCH 对象及未知/不可变字段返回 400。资源停用不删除历史，历史预约详情仍能显示其资源信息。接口无 DELETE 资源操作。
 
 slots 返回示例：
 
@@ -97,4 +97,19 @@ GET /statistics/overview：L 范围/A，参数 labId（可选）、fromDate、to
 
 ## 6. 后续契约验证
 
-实现时验证统一错误格式、分页边界、ID 精度、时间偏移、未知字段白名单、角色与归属、重放及状态竞争；集成测试需真实 MySQL 事务。认证错误使用 401、授权错误使用 403，业务冲突使用 409，不能全部返回 HTTP 200。阶段 1 已通过认证及健康接口验证，尚未实现资源、预约、微信和统计接口。基础统一错误码另含 CONFLICT（409）、METHOD_NOT_ALLOWED（405）、UNSUPPORTED_MEDIA_TYPE（415）、INTERNAL_ERROR（500）；响应不包含内部异常详情。
+实现时验证统一错误格式、分页边界、ID 精度、时间偏移、未知字段白名单、角色与归属、重放及状态竞争；集成测试需真实 MySQL 事务。认证错误使用 401、授权错误使用 403，业务冲突使用 409，不能全部返回 HTTP 200。阶段 2 已实现资源管理与归属校验；预约、微信和统计接口仍未实现。基础统一错误码另含 CONFLICT（409）、METHOD_NOT_ALLOWED（405）、UNSUPPORTED_MEDIA_TYPE（415）、INTERNAL_ERROR（500）；响应不包含内部异常详情。
+
+
+## 7. 阶段 2 实际契约与边界
+
+已实现：GET/POST /users、PATCH /users/{id}、PUT /users/{id}/password；GET/POST /labs、GET/PATCH /labs/{id}；GET/PUT /labs/{id}/admins；GET/POST /equipment、GET/PATCH /equipment/{id}。所有路径均有 /api/v1 前缀，创建返回 201，查询和更新返回 200。
+
+- 用户列表返回 id、username、realName、role、enabled、createdAt、updatedAt；账号默认启用，用户名和角色创建后不可变，停用当前自己返回 409 CONFLICT。重置返回字符串 id，密码哈希和 wxOpenid 不出现在任何管理响应中。重置不撤销已签发 JWT，旧密码不再能登录，符合当前无即时撤销机制的设计。
+- 实验室列表/详情返回表中公开字段的驼峰名称；设备列表/详情额外含字符串 labId 和 labName。时间为 +08:00 的 ISO 8601。分页 total、page、size 为数字，所有数据库 ID 为字符串。
+- username、name、keyword 采用包含匹配，搜索中的 %、_ 和反斜杠按字面量处理；keyword 匹配设备名称或资产编号。空白搜索、非法枚举、非正 ID、page<1、size 不在 1—100 内、enabled 非 0/1 返回 400；默认页和大小沿用 1/20。排序固定 createdAt 降序、id 降序，不提供自定义排序。
+- STUDENT 列表只包含启用实验室及其 AVAILABLE 设备。对列表传 enabled=0 或 status=MAINTENANCE/DISABLED 得到范围内的空结果，不扩大权限；详情访问受限资源返回 403。LAB_ADMIN 的 SQL 查询包含数据库分配范围，未分配任何实验室时列表为空。
+- 显式传入 labId 的设备查询会检查实验室存在与可见范围：不存在 404，存在但未授权或学生访问停用实验室 403；未指定 labId 时在 SQL 中过滤范围。资源详情不存在为 404、存在但无归属权限为 403。
+- 管理员分配请求示例：{"userIds":["12","13"]}，最多 100 个不同 ID；空数组撤销全部。重复或非法 ID 返回 400，用户不存在 404，角色不是 LAB_ADMIN 或已停用返回 409。替换响应及查询响应为 [{id,realName}]，按 ID 升序。停用账号不自动删除分配，但禁止后续访问；再次启用恢复原分配。
+- 管理员仍可管理停用实验室及其设备，设备 AVAILABLE 状态本身不会覆盖实验室停用限制。实验室停用不批量修改设备状态，重新启用也不会把 MAINTENANCE/DISABLED 设备改为 AVAILABLE。
+- 用户、实验室和设备均没有物理删除接口。编号、资产编号、设备所属实验室不能通过 PATCH 修改。唯一约束冲突返回 409 CONFLICT，锁等待或数据库暂时失败返回 503 RETRYABLE_ERROR。
+- 实验室停用和设备切换到不可用状态已调用 ResourceStateGuard，但当前实现明确不查询预约。阶段 3 必须接入真实预约占用检测，届时才满足表格中的“已有预约则阻断”规则。本阶段未实现 /slots，也不返回虚构占用信息。
