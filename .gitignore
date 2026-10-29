@@ -1,0 +1,35 @@
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# 本地配置与密钥
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-local.yaml
+backend/src/main/resources/application-local.properties
+miniapp/project.private.config.json
+
+# 依赖、编译及测试产物
+**/target/
+**/node_modules/
+**/dist/
+**/coverage/
+**/.vite/
+**/miniprogram_npm/
+*.tsbuildinfo
+*.log
+logs/
+tmp/
+
+# 数据备份；版本化迁移 SQL 不忽略
+*.sql.gz
+*.dump
+*.bak

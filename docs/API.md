@@ -1,0 +1,100 @@
+# 主要 REST API 设计
+
+## 1. 协议约定
+
+以下均为待实现接口，基础路径 /api/v1，JSON 编码 UTF-8，除登录及绑定接口外使用 Authorization: Bearer <JWT>。ID 使用字符串；业务时区 Asia/Shanghai，时间例：2026-11-01T09:00:00+08:00。服务端拒绝无偏移或非 +08:00 的业务时间，客户端显示北京时间。
+
+成功使用 HTTP 200，创建资源使用 201；统一响应：
+
+```json
+{"code":"OK","message":"成功","data":{"id":"123"},"requestId":"请求追踪标识"}
+```
+
+分页请求 page 从 1 开始，默认 1；size 默认 20，上限 100；响应 data 为 {records: [], total: 0, page: 1, size: 20}。固定排序默认 createdAt 降序、id 降序，未含 createdAt 的列表按 id；不接受未经白名单校验的 SQL 排序字段。日期区间参数 fromDate、toDate 为包含两端的自然日，服务端转换为 [首日零点,末日次日零点)。
+
+失败 data 为 null，message 不泄露堆栈及敏感字段。HTTP 400 参数错误、401 未认证或令牌失效、403 无角色或范围权限、404 资源不存在、409 业务或状态冲突、503 数据库锁超时等临时故障。业务码包括 VALIDATION_ERROR、UNAUTHORIZED、FORBIDDEN、NOT_FOUND、TIME_CONFLICT、INVALID_STATE、QUOTA_EXCEEDED、RESOURCE_UNAVAILABLE、IDEMPOTENCY_CONFLICT、RETRYABLE_ERROR。密码登录及绑定错误统一提示凭据不正确，避免账号枚举。
+
+角色缩写：学生 S、实验室管理员 L、系统管理员 A。表内“L 范围”表示必须拥有对应实验室分配。客户端不可传入角色、申请人或操作者字段改变身份。
+
+## 2. 认证与账号
+
+| 方法和路径 | 权限 | 请求与结果 |
+| --- | --- | --- |
+| POST /auth/login | 匿名 | username、password；仅 L/A，返回 accessToken、expiresIn（秒）、user |
+| POST /auth/wechat/login | 匿名 | code；已绑定返回 needBind=false、accessToken、expiresIn、user；未绑定返回 needBind=true、bindTicket、expiresIn=300 |
+| POST /auth/wechat/bind | 匿名 | bindTicket、username、password；仅有效学生账号可绑定，返回 accessToken、expiresIn、user |
+| GET /auth/me | S/L/A | 当前 id、username、realName、role，不包含密码哈希及 openid |
+| GET /users | A | username、role、enabled 分页筛选，返回脱敏管理信息 |
+| POST /users | A | username、realName、role、initialPassword，创建账号，不回显密码 |
+| PATCH /users/{id} | A | realName、enabled；不支持改账号及角色，不允许停用自身 |
+| PUT /users/{id}/password | A | newPassword，返回 id；不得写入日志 |
+
+密码长度 8—64 字符且 UTF-8 编码不超过 BCrypt 的 72 字节限制；账号 1—64 字符，不允许首尾空白。微信绑定不可覆盖已有不同绑定；重复或冲突返回 409。认证端点后续加入限流和失败次数限制，不能记录 code、绑定凭证或密码。无刷新令牌和服务端登出接口，客户端退出时清除令牌。
+
+## 3. 实验室与设备
+
+| 方法和路径 | 权限 | 说明 |
+| --- | --- | --- |
+| GET /labs | S/L/A | 分页；name、enabled；S 仅启用，L 仅分配范围，A 全局 |
+| GET /labs/{id} | S/L/A | 详情；S 仅启用，L 仅分配范围 |
+| POST /labs | A | code、name、location、description，默认启用 |
+| PATCH /labs/{id} | L 范围/A | name、location、description、enabled；有未结束占用则停用返回 409 |
+| GET /labs/{id}/admins | A | 当前分配管理员 ID 及姓名 |
+| PUT /labs/{id}/admins | A | userIds 数组，事务性替换；只能选启用的 L 账号，允许空数组 |
+| GET /equipment | S/L/A | labId、keyword、category、status 分页；S 仅启用实验室及 AVAILABLE 设备，L 限分配范围 |
+| GET /equipment/{id} | S/L/A | 同列表可见范围；返回资产编号、名称、所属实验室、状态等 |
+| POST /equipment | L 范围/A | labId、assetNo、name、category、model、location、description；初始 AVAILABLE |
+| PATCH /equipment/{id} | L 范围/A | name、category、model、location、description、status；不修改归属或资产编号 |
+| GET /equipment/{id}/slots | S/L/A | date，返回当天占用时间段；S 仅可预约设备，L 限范围；无申请人和用途 |
+
+枚举见数据库文档。PATCH 未传字段保持原值，可空字段允许显式 null；空字符串不得代替必填值。资源停用不删除历史，历史预约详情仍能显示其资源信息。接口无 DELETE 资源操作。
+
+slots 返回示例：
+
+```json
+{"date":"2026-11-01","openTime":"08:00","closeTime":"22:00","slots":[{"startTime":"2026-11-01T09:00:00+08:00","endTime":"2026-11-01T10:00:00+08:00","status":"PENDING"}]}
+```
+
+slots 只表示当前占用，不能保证随后的提交一定成功。
+
+## 4. 预约与审批
+
+| 方法和路径 | 权限 | 说明 |
+| --- | --- | --- |
+| POST /reservations | S | 创建自己的待审批预约，必须携带 Idempotency-Key 请求头 |
+| GET /reservations/mine | S | status、equipmentId、fromDate、toDate 分页；日期按预约开始日过滤 |
+| GET /reservations | L 范围/A | labId、equipmentId、status、fromDate、toDate 分页；含授权范围内学生姓名及学号 |
+| GET /reservations/{id} | 本人 S/L 范围/A | 预约信息及按时间、ID 升序的操作日志；S 访问非本人记录返回 404 |
+| POST /reservations/{id}/cancel | 本人 S | 开始前取消 PENDING/APPROVED；可传 reason（最多 500 字） |
+| POST /reservations/{id}/review | L 范围 | decision=APPROVE 或 REJECT，REJECT 必填 reason |
+| POST /reservations/{id}/revoke | L 范围 | 开始前撤销 APPROVED，必填 reason |
+| POST /reservations/{id}/complete | L 范围 | 结束后登记归还，仅 APPROVED 可转 COMPLETED |
+
+创建请求：
+
+```http
+POST /api/v1/reservations
+Authorization: Bearer <JWT>
+Idempotency-Key: 4f3096e2-d12c-47f2-a190-c5095762fd27
+Content-Type: application/json
+```
+
+```json
+{"equipmentId":"12","startTime":"2026-11-01T09:00:00+08:00","endTime":"2026-11-01T10:00:00+08:00","purpose":"完成课程实验"}
+```
+
+响应 data 包含 id、equipmentId、equipmentName、labId、startTime、endTime、purpose、status、createdAt。首次成功 201，相同键及标准化请求重放 200，返回同一预约的当前状态；相同键不同内容返回 409 IDEMPOTENCY_CONFLICT。幂等键保存至预约记录保留期结束，本项目不自动删除预约历史。
+
+创建按需求验证 7 天窗口、半点对齐、每日 08:00—22:00、单次最长 4 小时及最多 3 条未结束占用。最终冲突检查在数据库事务中完成，冲突返回 409 TIME_CONFLICT，不返回他人个人信息。
+
+处理接口返回预约当前状态及 updatedAt；同一操作者重复执行已成功的相同动作返回 200，不新增日志。服务端通过最近状态日志识别重复操作；若前次由其他操作者执行则返回 409，不伪造本次成功。取消与撤销虽然均转 CANCELLED，但属于不同操作，不能互相视为幂等重试。不同审批决策、终态再次转换、开始后审批或取消返回 409 INVALID_STATE。系统过期转换不暴露人工接口。
+
+## 5. 统计
+
+GET /statistics/overview：L 范围/A，参数 labId（可选）、fromDate、toDate（必填，最多 90 天），返回 totalCount、pendingCount、approvedCount、dailyTrend、topEquipment（最多 10 台）。L 不传 labId 时仅汇总其分配实验室，传未授权 ID 返回 403。
+
+统计以预约 created_at 的自然日归属，按查询时当前状态计算；approvedCount 为当前 APPROVED 数量，热门设备按当前 APPROVED 或 COMPLETED 数量排序，相同数量按设备 ID 升序。不将预约数量或预约时长称为真实设备利用率。
+
+## 6. 后续契约验证
+
+实现时验证统一错误格式、分页边界、ID 精度、时间偏移、未知字段白名单、角色与归属、重放及状态竞争；集成测试需真实 MySQL 事务。认证错误使用 401、授权错误使用 403，业务冲突使用 409，不能全部返回 HTTP 200。本阶段未实现接口或提供可运行接口示例服务。
