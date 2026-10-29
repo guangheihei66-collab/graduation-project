@@ -64,6 +64,30 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/v1/auth/me")
                     .authenticated()
+                    .requestMatchers(
+                        org.springframework.http.HttpMethod.GET, "/api/v1/reservations/mine")
+                    .hasRole("STUDENT")
+                    .requestMatchers(
+                        org.springframework.http.HttpMethod.GET, "/api/v1/reservations")
+                    .hasAnyRole("LAB_ADMIN", "SYS_ADMIN")
+                    .requestMatchers(
+                        org.springframework.http.HttpMethod.GET, "/api/v1/reservations/*")
+                    .authenticated()
+                    .requestMatchers(
+                        org.springframework.http.HttpMethod.POST, "/api/v1/reservations")
+                    .hasRole("STUDENT")
+                    .requestMatchers(
+                        org.springframework.http.HttpMethod.POST, "/api/v1/reservations/*/cancel")
+                    .hasRole("STUDENT")
+                    .requestMatchers(
+                        org.springframework.http.HttpMethod.POST,
+                        "/api/v1/reservations/*/review",
+                        "/api/v1/reservations/*/revoke",
+                        "/api/v1/reservations/*/complete")
+                    .hasRole("LAB_ADMIN")
+                    .requestMatchers(
+                        org.springframework.http.HttpMethod.GET, "/api/v1/statistics/overview")
+                    .hasAnyRole("LAB_ADMIN", "SYS_ADMIN")
                     .requestMatchers("/api/v1/users/**")
                     .hasRole("SYS_ADMIN")
                     .requestMatchers("/api/v1/labs/*/admins")

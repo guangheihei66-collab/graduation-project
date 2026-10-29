@@ -1,4 +1,5 @@
 app:
+  expiry-enabled: false
   jwt-secret: ${TEST_JWT_SECRET:integration-test-only-32-byte-key-not-for-production-123456}
   cors-origins: http://localhost:5173
 logging:
