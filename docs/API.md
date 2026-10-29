@@ -2,7 +2,7 @@
 
 ## 1. 协议约定
 
-阶段 1 已实现认证与匿名 GET /health 数据库健康检查；阶段 2 已实现下列用户、实验室、管理员分配及设备管理接口。微信认证、/equipment/{id}/slots、预约与统计仍为待实现设计。基础路径 /api/v1，JSON 编码 UTF-8，除登录及绑定接口外使用 Authorization: Bearer <JWT>。ID 使用字符串；业务时区 Asia/Shanghai，时间例：2026-11-01T09:00:00+08:00。服务端拒绝无偏移或非 +08:00 的业务时间，客户端显示北京时间。
+阶段 1 已实现认证与匿名 GET /health 数据库健康检查；阶段 2 已实现下列用户、实验室、管理员分配及设备管理接口。阶段 3 已实现 /equipment/{id}/slots、预约与统计；微信认证仍待阶段 5。基础路径 /api/v1，JSON 编码 UTF-8，除登录及绑定接口外使用 Authorization: Bearer <JWT>。ID 使用字符串；业务时区 Asia/Shanghai，时间例：2026-11-01T09:00:00+08:00。服务端拒绝无偏移或非 +08:00 的业务时间，客户端显示北京时间。
 
 成功使用 HTTP 200，创建资源使用 201；统一响应：
 
@@ -62,7 +62,7 @@ slots 只表示当前占用，不能保证随后的提交一定成功。
 | 方法和路径 | 权限 | 说明 |
 | --- | --- | --- |
 | POST /reservations | S | 创建自己的待审批预约，必须携带 Idempotency-Key 请求头 |
-| GET /reservations/mine | S | status、equipmentId、fromDate、toDate 分页；日期按预约开始日过滤 |
+| GET /reservations/mine | S | status、equipmentId、labId、fromDate、toDate 分页；日期按预约开始日过滤 |
 | GET /reservations | L 范围/A | labId、equipmentId、status、fromDate、toDate 分页；含授权范围内学生姓名及学号 |
 | GET /reservations/{id} | 本人 S/L 范围/A | 预约信息及按时间、ID 升序的操作日志；S 访问非本人记录返回 404 |
 | POST /reservations/{id}/cancel | 本人 S | 开始前取消 PENDING/APPROVED；可传 reason（最多 500 字） |
@@ -97,7 +97,7 @@ GET /statistics/overview：L 范围/A，参数 labId（可选）、fromDate、to
 
 ## 6. 后续契约验证
 
-实现时验证统一错误格式、分页边界、ID 精度、时间偏移、未知字段白名单、角色与归属、重放及状态竞争；集成测试需真实 MySQL 事务。认证错误使用 401、授权错误使用 403，业务冲突使用 409，不能全部返回 HTTP 200。阶段 2 已实现资源管理与归属校验；预约、微信和统计接口仍未实现。基础统一错误码另含 CONFLICT（409）、METHOD_NOT_ALLOWED（405）、UNSUPPORTED_MEDIA_TYPE（415）、INTERNAL_ERROR（500）；响应不包含内部异常详情。
+实现时验证统一错误格式、分页边界、ID 精度、时间偏移、未知字段白名单、角色与归属、重放及状态竞争；集成测试需真实 MySQL 事务。认证错误使用 401、授权错误使用 403，业务冲突使用 409，不能全部返回 HTTP 200。阶段 2 已实现资源管理与归属校验；预约与统计已在阶段 3 实现，微信接口仍未实现。基础统一错误码另含 CONFLICT（409）、METHOD_NOT_ALLOWED（405）、UNSUPPORTED_MEDIA_TYPE（415）、INTERNAL_ERROR（500）；响应不包含内部异常详情。
 
 
 ## 7. 阶段 2 实际契约与边界
@@ -112,4 +112,26 @@ GET /statistics/overview：L 范围/A，参数 labId（可选）、fromDate、to
 - 管理员分配请求示例：{"userIds":["12","13"]}，最多 100 个不同 ID；空数组撤销全部。重复或非法 ID 返回 400，用户不存在 404，角色不是 LAB_ADMIN 或已停用返回 409。替换响应及查询响应为 [{id,realName}]，按 ID 升序。停用账号不自动删除分配，但禁止后续访问；再次启用恢复原分配。
 - 管理员仍可管理停用实验室及其设备，设备 AVAILABLE 状态本身不会覆盖实验室停用限制。实验室停用不批量修改设备状态，重新启用也不会把 MAINTENANCE/DISABLED 设备改为 AVAILABLE。
 - 用户、实验室和设备均没有物理删除接口。编号、资产编号、设备所属实验室不能通过 PATCH 修改。唯一约束冲突返回 409 CONFLICT，锁等待或数据库暂时失败返回 503 RETRYABLE_ERROR。
-- 实验室停用和设备切换到不可用状态已调用 ResourceStateGuard，但当前实现明确不查询预约。阶段 3 必须接入真实预约占用检测，届时才满足表格中的“已有预约则阻断”规则。本阶段未实现 /slots，也不返回虚构占用信息。
+- 阶段 3 已用 ReservationResourceStateGuard 替换基础空实现，实验室停用和设备切换不可用时查询真实有效预约，有占用返回 409 RESOURCE_UNAVAILABLE；/slots 返回真实有效时段。
+
+
+## 8. 阶段 3 已实现接口与响应
+
+新增十个方法/路径组合：GET /equipment/{id}/slots、POST /reservations、GET /reservations/mine、GET /reservations、GET /reservations/{id}、POST /reservations/{id}/review、POST /reservations/{id}/cancel、POST /reservations/{id}/revoke、POST /reservations/{id}/complete、GET /statistics/overview。均沿用 /api/v1 前缀与现有 Bearer 校验，不开放新的学生登录。
+
+预约响应除前文已有字段外包含 studentId、studentName、username、updatedAt、logs；学生只能读取本人记录，管理员列表在 SQL 限定分配范围。列表和创建响应 logs 为空数组，详情及动作响应包含按 createdAt、id 升序的日志 [{id,operatorId,action,fromStatus,toStatus,reason,createdAt}]；系统 EXPIRE 的 operatorId 为 null。所有 ID 字符串化，所有时间带 +08:00。
+
+- 创建必填标准 UUID 格式 Idempotency-Key，不区分 UUID 字母大小写；同学生同键同规范化请求首次 201、重放 200，同键不同内容 409 IDEMPOTENCY_CONFLICT。重放返回原记录的当前有效状态，允许时间过去、预约取消、设备或实验室后来不可用，但仍要求当前学生账号有效。不同幂等键走正常冲突和配额判断。
+- 时间字符串必须可解析为带 +08:00 的 ISO 8601，拒绝无偏移、Z 或其他偏移；开始/结束整点或半点且秒与小数秒为零。时间和用途非法 400，时段冲突 TIME_CONFLICT、配额 QUOTA_EXCEEDED、资源不可用 RESOURCE_UNAVAILABLE、非法状态 INVALID_STATE 均为 HTTP 409。数据库锁超时/死锁回滚后返回 503 RETRYABLE_ERROR，客户端应保留原幂等键重试。
+- review 请求 decision=APPROVE/REJECT；REJECT 和 revoke 必须有非空 reason，最多 500 字。cancel 可无请求体或 {reason}，complete 无请求体。重复动作仅在最后一条日志的动作、操作者及规范化原因相同的情况下返回 200，不新增日志；不同操作者、原因或后续状态变化均不能覆盖历史。授权始终重新检查。
+- 仅开始前可审批、取消或撤销，结束到达后才可完成；已通过且结束后未登记的预约仍为 APPROVED，但不再占用未来时段或配额。系统管理员只能查看预约，不能提交或审批。
+- 已到开始时间的 PENDING 在查询、筛选和统计中有效状态为 EXPIRED，即使定时任务暂未落库；GET 不做无锁状态修改。slots 只含有效尚未结束的 PENDING/APPROVED 时段，不含申请人、用途或预约 ID，也不能替代提交时的事务冲突检查。
+- mine 增加可选 labId 筛选以满足阶段 3 的实验室过滤要求，始终同时限制当前学生；管理员指定未授权 labId 返回 403。日期过滤按预约开始自然日，fromDate/toDate 可独立使用，成对时开始不得大于结束。
+
+统计必须提供 fromDate、toDate，包含两端最多 90 天；labId 可选。响应为：
+
+```json
+{"totalCount":4,"pendingCount":1,"approvedCount":2,"dailyTrend":[{"date":"2026-11-02","count":4}],"topEquipment":[{"equipmentId":"12","equipmentName":"示波器","count":1}]}
+```
+
+示例仅说明契约，不是内置数据。数量为 JSON 数字；趋势按日升序，范围内没有预约的日期补零；热门设备仅计当前 APPROVED/COMPLETED，最多十台，数量降序、设备 ID 升序。日期归属按 created_at，待审批排除已过开始时间但尚未持久化过期的记录。三项统计查询使用 READ COMMITTED 的已提交数据，持续并发写入时不承诺多个聚合查询构成同一冻结快照。统计结果不是实际设备利用率。

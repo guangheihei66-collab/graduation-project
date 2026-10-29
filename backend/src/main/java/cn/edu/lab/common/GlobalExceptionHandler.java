@@ -32,6 +32,7 @@ public class GlobalExceptionHandler {
     ConstraintViolationException.class,
     org.springframework.web.method.annotation.HandlerMethodValidationException.class,
     org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+    org.springframework.web.bind.MissingServletRequestParameterException.class,
     org.springframework.validation.BindException.class
   })
   ResponseEntity<ApiResponse<Void>> invalid(Exception e) {
