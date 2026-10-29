@@ -1,0 +1,22 @@
+package cn.edu.lab.common;
+
+import org.springframework.http.HttpStatus;
+
+public enum ErrorCode {
+  VALIDATION_ERROR(400, "请求参数不正确"),
+  UNAUTHORIZED(401, "凭据不正确或登录已失效"),
+  FORBIDDEN(403, "无权访问"),
+  NOT_FOUND(404, "资源不存在"),
+  CONFLICT(409, "数据冲突"),
+  RETRYABLE_ERROR(503, "服务暂不可用，请稍后重试"),
+  METHOD_NOT_ALLOWED(405, "请求方法不支持"),
+  UNSUPPORTED_MEDIA_TYPE(415, "请求内容类型不支持"),
+  INTERNAL_ERROR(500, "服务器内部错误");
+  public final HttpStatus status;
+  public final String message;
+
+  ErrorCode(int status, String message) {
+    this.status = HttpStatus.valueOf(status);
+    this.message = message;
+  }
+}

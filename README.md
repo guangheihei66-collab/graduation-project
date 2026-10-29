@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-已完成阶段 0 的目录初始化与设计文档。尚未初始化可运行工程，未实现业务、数据库迁移或自动化测试，未进行应用运行验证。
+阶段 0 已完成并合并。阶段 1 已实现 Spring Boot 后端基础、MySQL 四张基础表迁移、管理员登录及 JWT 权限基础，并进行了构建、测试及应用启动验证；详细结果见进度记录。阶段 2—7 尚未开始。
 
 ## 技术选型
 
@@ -21,7 +21,7 @@
 ## 目录与文档
 
 ```text
-backend/       后端工程（当前仅占位）
+backend/       Spring Boot 后端基础工程
 admin-web/     管理后台（当前仅占位）
 miniapp/       微信小程序（当前仅占位）
 docs/          中文设计及进度文档
@@ -37,6 +37,17 @@ AGENTS.md      项目开发规范
 
 ## 开发与运行
 
-按路线图逐阶段推进，阶段 1 再初始化后端和数据库迁移，阶段 4 初始化管理后台，阶段 5 初始化小程序。当前没有启动、构建或测试命令，目录占位不代表功能完成。
+后端需要 Java 17、MySQL 8；配置环境变量、开发演示数据与完整启动步骤见 [后端说明](backend/README.md)。
+
+```bash
+cd backend
+./mvnw test       # 单元测试
+./mvnw package    # 打包
+./mvnw verify     # 包含真实 MySQL 集成测试，需要 Docker
+# 配好数据库和 JWT 环境变量后：
+java -jar target/reservation-backend-0.1.0-SNAPSHOT.jar
+```
+
+当前接口：POST /api/v1/auth/login、GET /api/v1/auth/me、GET /api/v1/health。资源 CRUD、预约和微信认证均未实现。阶段 4 再初始化管理后台，阶段 5 初始化小程序。
 
 配置通过环境变量或忽略的本地配置提供。禁止提交数据库密码、JWT 密钥、微信 AppSecret、访问令牌及真实个人数据。直接使用现有仓库，不另建 Git 仓库。
