@@ -20,7 +20,7 @@ flowchart LR
 
 ## 2. 工程及模块
 
-backend 采用 Maven，后续提供 Maven Wrapper。按 auth、user、laboratory、equipment、reservation、statistics、common 分模块，每个业务模块内部按 controller、service、mapper、entity、dto 分层。控制器负责参数和协议，服务层负责权限范围、事务与状态机，Mapper 负责持久化。查询应在 SQL 中附加范围条件，禁止先返回全部数据再由前端过滤。
+backend 采用 Maven，已提供 Maven Wrapper。按 auth、user、laboratory、equipment、reservation、statistics、common 分模块，每个业务模块内部按 controller、service、mapper、entity、dto 分层。控制器负责参数和协议，服务层负责权限范围、事务与状态机，Mapper 负责持久化。查询应在 SQL 中附加范围条件，禁止先返回全部数据再由前端过滤。
 
 admin-web 按登录、实验室、设备、预约审批、账号管理、统计组织页面；路由角色检查用于交互，后端仍执行权限验证。miniapp 包含登录绑定、实验室列表、设备详情及时段、提交预约、我的预约、预约详情。
 
@@ -61,3 +61,10 @@ JWT 使用经过验证的库进行 HS256 签名，密钥至少 256 位，通过�
 ## 7. 验证策略
 
 服务层 JUnit 5 覆盖时间边界与状态机；Spring Boot 集成测试结合真实 MySQL 8 验证 SQL、事务、唯一键、并发和权限。可使用 Testcontainers，若环境不支持容器则使用隔离测试库，不在开发库执行清库测试。前端构建和类型检查、小程序开发者工具检查以及跨端完整流程均在对应阶段执行。无实现时不以空测试集代表通过。
+
+
+## 8. 阶段 2 资源权限实现
+
+Service 通过 ActorAccess 从当前认证主体和数据库获取账号信息，ResourceAccess 检查实验室存在性及 lab_admin 真实归属；SQL 列表查询也附加范围条件，禁止只在控制器检查角色。实验室更新、设备创建/更新、管理员替换持有同一 laboratory 行锁；设备更新先读取不可变 lab_id，再依序锁实验室和设备，并重新校验权限。停用实验室在实验室锁内按 ID 升序锁设备，调用 ResourceStateGuard。分配替换在实验室锁后按 ID 升序锁定候选管理员，校验启用状态和角色，与账号停用协调；不使用内存锁或全表锁。
+
+PATCH DTO 的 setter 记录字段是否出现，白名单字段省略时不更新，显式 null 仅可清空可空字段。响应只由专用 DTO 构造，不暴露实体；时间转换为北京时间偏移，所有 ID 为字符串。阶段 2 没有预约表，占用检查入口当前为空实现，不能当作已完成预约冲突检测；阶段 3 必须替换该实现并补齐占用阻断测试。
