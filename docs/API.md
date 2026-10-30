@@ -2,7 +2,7 @@
 
 ## 1. 协议约定
 
-阶段 1 已实现认证与匿名 GET /health 数据库健康检查；阶段 2 已实现下列用户、实验室、管理员分配及设备管理接口。阶段 3 已实现 /equipment/{id}/slots、预约与统计；微信认证仍待阶段 5。基础路径 /api/v1，JSON 编码 UTF-8，除登录及绑定接口外使用 Authorization: Bearer <JWT>。ID 使用字符串；业务时区 Asia/Shanghai，时间例：2026-11-01T09:00:00+08:00。服务端拒绝无偏移或非 +08:00 的业务时间，客户端显示北京时间。
+阶段 1 已实现认证与匿名 GET /health 数据库健康检查；阶段 2 已实现下列用户、实验室、管理员分配及设备管理接口。阶段 3 已实现 /equipment/{id}/slots、预约与统计；阶段 5 已实现微信认证与密码绑定，真实平台尚未验证。基础路径 /api/v1，JSON 编码 UTF-8，除登录及绑定接口外使用 Authorization: Bearer <JWT>。ID 使用字符串；业务时区 Asia/Shanghai，时间例：2026-11-01T09:00:00+08:00。服务端拒绝无偏移或非 +08:00 的业务时间，客户端显示北京时间。
 
 成功使用 HTTP 200，创建资源使用 201；统一响应：
 
@@ -97,7 +97,7 @@ GET /statistics/overview：L 范围/A，参数 labId（可选）、fromDate、to
 
 ## 6. 后续契约验证
 
-实现时验证统一错误格式、分页边界、ID 精度、时间偏移、未知字段白名单、角色与归属、重放及状态竞争；集成测试需真实 MySQL 事务。认证错误使用 401、授权错误使用 403，业务冲突使用 409，不能全部返回 HTTP 200。阶段 2 已实现资源管理与归属校验；预约与统计已在阶段 3 实现，微信接口仍未实现。基础统一错误码另含 CONFLICT（409）、METHOD_NOT_ALLOWED（405）、UNSUPPORTED_MEDIA_TYPE（415）、INTERNAL_ERROR（500）；响应不包含内部异常详情。
+实现时验证统一错误格式、分页边界、ID 精度、时间偏移、未知字段白名单、角色与归属、重放及状态竞争；集成测试需真实 MySQL 事务。认证错误使用 401、授权错误使用 403，业务冲突使用 409，不能全部返回 HTTP 200。阶段 2 已实现资源管理与归属校验；预约与统计已在阶段 3 实现，微信接口已在阶段5实现，真实微信平台尚未验证。基础统一错误码另含 CONFLICT（409）、METHOD_NOT_ALLOWED（405）、UNSUPPORTED_MEDIA_TYPE（415）、INTERNAL_ERROR（500）；响应不包含内部异常详情。
 
 
 ## 7. 阶段 2 实际契约与边界
@@ -117,7 +117,7 @@ GET /statistics/overview：L 范围/A，参数 labId（可选）、fromDate、to
 
 ## 8. 阶段 3 已实现接口与响应
 
-新增十个方法/路径组合：GET /equipment/{id}/slots、POST /reservations、GET /reservations/mine、GET /reservations、GET /reservations/{id}、POST /reservations/{id}/review、POST /reservations/{id}/cancel、POST /reservations/{id}/revoke、POST /reservations/{id}/complete、GET /statistics/overview。均沿用 /api/v1 前缀与现有 Bearer 校验，不开放新的学生登录。
+新增十个方法/路径组合：GET /equipment/{id}/slots、POST /reservations、GET /reservations/mine、GET /reservations、GET /reservations/{id}、POST /reservations/{id}/review、POST /reservations/{id}/cancel、POST /reservations/{id}/revoke、POST /reservations/{id}/complete、GET /statistics/overview。均沿用 /api/v1 前缀与现有 Bearer 校验，阶段3当时不开放新的学生登录，阶段5已新增正式微信入口。
 
 预约响应除前文已有字段外包含 studentId、studentName、username、updatedAt、logs；学生只能读取本人记录，管理员列表在 SQL 限定分配范围。列表和创建响应 logs 为空数组，详情及动作响应包含按 createdAt、id 升序的日志 [{id,operatorId,action,fromStatus,toStatus,reason,createdAt}]；系统 EXPIRE 的 operatorId 为 null。所有 ID 字符串化，所有时间带 +08:00。
 
@@ -144,3 +144,14 @@ GET /statistics/overview：L 范围/A，参数 labId（可选）、fromDate、to
 前端保持 ID 字符串、分页数字与 +08:00 时间口径；PATCH 只提交变化字段，明确清空可空字段时发送 null。密码重置只提交 newPassword，不回显。管理员替换提交完整 userIds 数组，并由页面二次确认。系统管理员不提供审批按钮，实验室管理员导航不含用户管理，最终权限仍由后端检查。
 
 登录后和管理路由进入时调用 /auth/me；401 清理浏览器会话，403 不当作过期，409 INVALID_STATE 提示后刷新预约和统计。写入不自动重试；界面不直接修改 status。浏览器真实联调和测试记录见 PROGRESS，未增加任何兼容性放宽或假数据接口。
+
+## 10. 阶段 5 微信与学生端实际契约
+
+- POST /auth/wechat/login：仅code，未知字段（包括openid）400；已绑定启用STUDENT返回 {needBind:false,accessToken,expiresIn:7200,user}；未绑定返回 {needBind:true,bindTicket,expiresIn:300}，不输出无关null字段。
+- POST /auth/wechat/bind：bindTicket为43字符URL-safe随机凭据，username及password沿用原长度/BCrypt72字节约束。成功返回原LoginResponse，HTTP200；用户信息ID字符串，不含openid/session_key/密码哈希。错误账号、密码、停用或非学生统一401 UNAUTHORIZED。票据无效/过期/成功使用后再次提交401 BIND_TICKET_INVALID；已有微信/账号绑定409 WECHAT_BIND_CONFLICT。失败不覆盖绑定，不消耗可再次尝试的未过期票据。
+- 无效/已用微信code为401 WECHAT_CODE_INVALID；微信服务错误、缺字段、非法响应、超时及未配置凭据为503 RETRYABLE_ERROR。客户端需重新wx.login获取新code，不能重放旧code当长期凭证。
+- 仅这两个POST匿名开放；原/auth/login行为、预约安全规则及角色限制不变。
+- 小程序对接12个方法/路径：微信login/bind、me、labs列表/详情、equipment列表/详情/slots、预约create/mine/detail/cancel，不调用管理员接口。请求失败不伪造数据，不自动重试写操作。
+- 创建确认保存当前学生和规范化内容对应的UUID，超时/503及进程重启后同内容手动重试保留键。首次201/重放200后跳真实详情；409按业务码提示。我的预约始终用mine，详情/取消服务端验证本人。
+
+正式客户端固定使用微信官方code2Session，参数appid、secret、js_code、grant_type=authorization_code，仅服务端持有AppSecret。session_key不保存、不回传。外部Mock仅用于测试，不把它称为真实微信成功。

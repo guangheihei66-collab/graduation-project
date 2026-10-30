@@ -1,0 +1,22 @@
+<view class="page top-space"
+  ><view class="hero"
+    ><view class="eyebrow">CAMPUS LABORATORY</view
+    ><view class="title">让每一次实验有序开始</view
+    ><view class="subtitle">高校实验室设备预约 · 学生端</view></view
+  ><view class="card"
+    ><view class="heading">微信学生登录</view
+    ><view class="muted"
+      >首次使用需绑定学校预先创建的学生账号。请向实验室管理员获取账号，不提供公开注册。</view
+    ><view wx:if="{{error}}" class="error">{{error}}</view
+    ><button
+      class="primary"
+      loading="{{busy}}"
+      disabled="{{busy}}"
+      bindtap="login"
+    >
+      微信登录</button
+    ><view class="notice"
+      >仅在你点击后调用微信登录。账号绑定用于识别预约归属，密码不保存在本地。</view
+    ></view
+  ></view
+>

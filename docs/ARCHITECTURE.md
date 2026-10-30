@@ -16,7 +16,7 @@ flowchart LR
     I[Flyway 版本迁移] --> G
 ```
 
-图中为总体目标设计。阶段 1—3 已实现后端认证、资源管理、预约和统计，客户端与微信对接仍待后续阶段，尚未生产部署。
+图中为总体目标设计。阶段 1—4 已实现后端与管理后台，阶段 5 新增原生学生端及微信认证服务；微信平台、官方工具与真机尚未验证，未生产部署。
 
 ## 2. 工程及模块
 
@@ -81,3 +81,13 @@ ExpirySchedule 默认每分钟触发，ExpiryJob 每批至多 200 条、每轮�
 ReservationResourceStateGuard 是唯一的资源状态检查 Bean，原 FoundationResourceStateGuard 已移除；查询真实有效占用，调用方持有阶段 2 的实验室与设备锁。因此停用与创建预约互斥，不能形成不可用设备的新有效预约。
 
 统计通过 MySQL COUNT、SUM、GROUP BY、范围 EXISTS 聚合，再补趋势零日期，不把明细全量取回后过滤。使用 READ COMMITTED，不为统计另改全局隔离级别；多个聚合之间发生并发写入时不提供冻结快照。预约列表分页先在 SQL 筛选，DTO 按已授权记录补设备、学生和日志信息。
+
+## 10. 阶段 5 实现边界
+
+OfficialWechatClient固定官方HTTPS、3秒连接与5秒总请求超时、禁止重定向，错误转换为脱敏业务码；微信HTTP在任何绑定行锁事务之外。WechatAuthService复用JwtService/UserView与BCrypt，不新增另一套JWT。随机票据摘要持久化，绑定事务按账号→票据锁、哈希重查、唯一键和消费原子完成，详情见DATABASE。
+
+miniapp使用原生WXML/WXSS/JS和wx.request，不使用Vue或第三方跨端框架。启动与受保护页恢复/me，JWT/脱敏用户本地保存，bindTicket仅内存，密码临时输入；退出清除会话及草稿。服务层统一12项学生接口、业务错误和401跳转，页面代次使离开/筛选后的旧响应不能覆盖新列表。
+
+预约草稿按用户与规范化内容持久化UUID，无限重试禁用，连续点击共享在途Promise；不同内容才换键，业务最终仍由既有ReservationCreateService和事务规则决定。HTTP Date可辅助显示，缺失时设备时间仅为交互提示。
+
+测试层使用Node内置测试、正式services的真实HTTP链路、MySQL Testcontainers以及Mock微信上游。wx容器模拟不是开发者工具编译或真机；不把无真实凭据的上游替换视为官方认证验收。阶段6未启动。

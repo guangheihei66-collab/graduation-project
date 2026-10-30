@@ -1,0 +1,17 @@
+<view class="page"
+  ><view class="hero"
+    ><view class="eyebrow">STUDENT PROFILE</view
+    ><view class="title">我的信息</view
+    ><view class="subtitle">保护账号，共同维护实验室秩序</view></view
+  ><load-state error="{{error}}" bind:retry="retry" /><view
+    wx:if="{{user}}"
+    class="card"
+    ><text class="label">姓名</text
+    ><view class="heading">{{user.realName}}</view
+    ><text class="label">学号 / 用户名</text><view>{{user.username}}</view
+    ><text class="label">角色</text><view>学生</view
+    ><view class="notice"
+      >账号停用、密码重置和绑定异常请联系学校管理员。退出只清除本机会话，不代表服务器即时撤销JWT。</view
+    ><button class="danger" bindtap="logout">退出登录</button></view
+  ></view
+>

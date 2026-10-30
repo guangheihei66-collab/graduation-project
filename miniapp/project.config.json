@@ -1,0 +1,35 @@
+{
+  "description": "高校实验室设备预约学生端；导入后使用自己的 AppID",
+  "miniprogramRoot": "./",
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "laboratory-reservation",
+  "libVersion": "3.7.12",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "tests"
+      },
+      {
+        "type": "folder",
+        "value": "scripts"
+      },
+      {
+        "type": "file",
+        "value": "package.json"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      }
+    ]
+  }
+}

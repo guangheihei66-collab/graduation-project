@@ -1,0 +1,42 @@
+{
+  "pages": [
+    "pages/login/index",
+    "pages/bind/index",
+    "pages/home/index",
+    "pages/lab/index",
+    "pages/equipment/index",
+    "pages/slots/index",
+    "pages/confirm/index",
+    "pages/reservations/index",
+    "pages/reservation/index",
+    "pages/profile/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "实验室设备预约",
+    "navigationBarBackgroundColor": "#1765d1",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f3f6fb"
+  },
+  "tabBar": {
+    "color": "#66758c",
+    "selectedColor": "#1765d1",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "实验室"
+      },
+      {
+        "pagePath": "pages/reservations/index",
+        "text": "我的预约"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

@@ -1,0 +1,49 @@
+<view class="page"
+  ><view class="heading">{{equipment.name || '选择预约时段'}}</view
+  ><view class="notice"
+    >选择包含的半小时时段。例如09:00—10:00：先点09:00，再点09:30；30分钟则同一格点击两次。</view
+  ><picker
+    mode="date"
+    value="{{date}}"
+    start="{{minDate}}"
+    end="{{maxDate}}"
+    bindchange="date"
+    disabled="{{busy}}"
+    ><view class="picker">预约日期：{{date}} ▾</view></picker
+  ><view class="legend"
+    ><text>蓝底：可用</text><text>红底：占用</text><text>灰底：不可选</text
+    ><text>深蓝：已选</text></view
+  ><load-state
+    loading="{{loading}}"
+    error="{{error}}"
+    bind:retry="retry"
+  /><view class="grid"
+    ><view
+      wx:for="{{cells}}"
+      wx:key="minute"
+      class="slot {{item.state}}"
+      data-minute="{{item.minute}}"
+      bindtap="select"
+      >{{item.label}}</view
+    ></view
+  ><view class="card"
+    ><view class="heading">{{selection}}</view
+    ><text class="label">预约用途</text
+    ><textarea
+      class="input"
+      maxlength="500"
+      value="{{purpose}}"
+      bindinput="purpose"
+      placeholder="填写课程实验或研究用途（1—500字符）"
+    /><view class="notice"
+      >{{purpose.length}} / 500 · 最终以服务端事务校验为准</view
+    ><button
+      class="primary"
+      bindtap="next"
+      disabled="{{loading || busy || !equipment}}"
+      loading="{{busy}}"
+    >
+      下一步：确认预约
+    </button></view
+  ></view
+>

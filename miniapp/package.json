@@ -1,0 +1,13 @@
+{
+  "name": "laboratory-student-miniapp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "微信原生学生预约端：无运行时 npm 依赖",
+  "scripts": {
+    "check": "node scripts/check.js",
+    "test": "node tests/student.test.js"
+  },
+  "engines": {
+    "node": ">=22.22.2"
+  }
+}

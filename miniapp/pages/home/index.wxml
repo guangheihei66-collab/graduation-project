@@ -1,0 +1,43 @@
+<view class="page"
+  ><view class="hero"
+    ><view class="eyebrow">EXPLORE &amp; RESERVE</view
+    ><view class="title">发现实验空间</view
+    ><view class="subtitle">选择实验室，查询设备与可预约时间</view></view
+  ><view class="search"
+    ><input
+      class="input"
+      value="{{keyword}}"
+      bindinput="input"
+      bindconfirm="search"
+      placeholder="搜索实验室名称"
+      confirm-type="search"
+    /><button class="primary small" bindtap="search">搜索</button></view
+  ><view class="notice">仅展示已启用实验室 · 共 {{total}} 项</view
+  ><view
+    wx:for="{{records}}"
+    wx:key="id"
+    class="card"
+    data-id="{{item.id}}"
+    bindtap="open"
+    ><view class="row"
+      ><view class="pill">实</view
+      ><view class="grow"
+        ><view class="heading">{{item.name}}</view
+        ><view class="muted">{{item.code}} · {{item.location}}</view></view
+      ><text class="link">›</text></view
+    ><view wx:if="{{item.description}}" class="notice"
+      >{{item.description}}</view
+    ></view
+  ><load-state
+    loading="{{loading}}"
+    error="{{error}}"
+    empty="{{!records.length}}"
+    bind:retry="retry"
+  /><button
+    wx:if="{{records.length < total &amp;&amp; !loading}}"
+    class="secondary"
+    bindtap="onReachBottom"
+  >
+    加载更多
+  </button></view
+>

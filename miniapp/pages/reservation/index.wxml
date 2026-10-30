@@ -1,0 +1,48 @@
+<view class="page"
+  ><load-state
+    loading="{{loading}}"
+    error="{{error}}"
+    bind:retry="retry"
+  /><block wx:if="{{item}}"
+    ><view class="hero"
+      ><view class="eyebrow">预约 #{{item.id}}</view
+      ><view class="title">{{item.equipmentName}}</view
+      ><text class="tag {{item.status}}">{{item.statusText}}</text></view
+    ><view class="card"
+      ><view class="heading">预约信息</view
+      ><view class="value">{{item.timeText}}</view
+      ><text class="label">用途</text><view class="value">{{item.purpose}}</view
+      ><text class="label">预约人</text
+      ><view>{{item.studentName}} · {{item.username}}</view></view
+    ><view class="card"
+      ><view class="heading">操作记录与审批意见</view
+      ><view wx:for="{{item.logs}}" wx:key="id" class="log"
+        ><view class="row"
+          ><text>{{item.actionText}}</text
+          ><text class="tag">{{item.statusText}}</text></view
+        ><view class="muted">{{item.timeText}}</view
+        ><view wx:if="{{item.reason}}" class="value"
+          >{{item.reason}}</view
+        ></view
+      ><view wx:if="{{!item.logs.length}}" class="muted"
+        >暂无操作记录</view
+      ></view
+    ><view wx:if="{{canCancel}}" class="card"
+      ><view class="heading">取消预约</view
+      ><textarea
+        class="input"
+        maxlength="500"
+        value="{{reason}}"
+        bindinput="reason"
+        placeholder="取消原因（可选，最多500字符）"
+      /><button
+        class="danger"
+        bindtap="cancel"
+        loading="{{busy}}"
+        disabled="{{busy || loading}}"
+      >
+        取消此预约
+      </button></view
+    ></block
+  ></view
+>

@@ -1,8 +1,8 @@
-# 后端工程（阶段 3）
+# 后端工程（阶段 5）
 
 ## 已实现与范围
 
-单体 Spring Boot 应用，保留阶段 1 的认证、统一基础设施和四表迁移，新增用户、实验室、管理员分配及设备管理。Service 层验证角色与实验室归属，列表在 SQL 中限制范围，修改使用数据库事务和行锁。阶段 3 已实现预约、审批、过期和统计；微信认证和客户端仍未实现。
+单体 Spring Boot 应用，保留阶段 1 的认证、统一基础设施和四表迁移，新增用户、实验室、管理员分配及设备管理。Service 层验证角色与实验室归属，列表在 SQL 中限制范围，修改使用数据库事务和行锁。阶段 3 已实现预约、审批、过期和统计；阶段 4 管理后台已合并；阶段 5 新增微信学生认证和小程序，真实微信平台及官方工具未验证。
 
 ## 固定版本
 
@@ -58,7 +58,7 @@ JWT 可用 `openssl rand -base64 48` 在本地生成，再安全注入；不要�
 
 ## 迁移及演示数据
 
-`src/main/resources/db/migration/V1__create_foundation_tables.sql` 创建 sys_user、laboratory、lab_admin、equipment 及约束、索引，Flyway 历史表由框架维护。重复启动只校验迁移，不重建数据；发布后禁止修改 V1，应新增 V2 等迁移。预约相关表不在本阶段创建。
+`src/main/resources/db/migration/V1__create_foundation_tables.sql` 创建 sys_user、laboratory、lab_admin、equipment 及约束、索引，Flyway 历史表由框架维护。重复启动只校验迁移，不重建数据；发布后禁止修改历史迁移；阶段3已新增V2预约表，阶段5新增V3微信票据表。
 
 在专用开发库同时设置 `SPRING_PROFILES_ACTIVE=dev`、`DEMO_ENABLED=true` 和 `DEMO_PASSWORD` 后启动，事务性创建：
 
@@ -83,7 +83,7 @@ JWT 可用 `openssl rand -base64 48` 在本地生成，再安全注入；不要�
 java -jar target/reservation-backend-0.1.0-SNAPSHOT.jar
 ```
 
-`test` 和 `package` 执行单元测试，`verify` 额外执行名称为 `*IT` 的 MySQL 集成测试。Testcontainers 自动创建一次性 MySQL，且测试会清理该临时库中的四张业务表；不读取开发 DB_URL、不连接现有开发或生产库。没有 Docker 时 `verify` 应失败，不能据此声称 MySQL 已验证；仍可单独运行 `test`、`package`。测试密钥和测试账号仅用于测试运行，不是应用默认凭据。
+`test` 和 `package` 执行单元测试，`verify` 额外执行名称为 `*IT` 的 MySQL 集成测试。Testcontainers 自动创建一次性 MySQL，且测试会清理该一次性库中各自的业务数据；不读取开发 DB_URL、不连接现有开发或生产库。没有 Docker 时 `verify` 应失败，不能据此声称 MySQL 已验证；仍可单独运行 `test`、`package`。测试密钥和测试账号仅用于测试运行，不是应用默认凭据。
 
 | 方法 | 路径 | 权限及行为 |
 | --- | --- | --- |
@@ -93,7 +93,7 @@ java -jar target/reservation-backend-0.1.0-SNAPSHOT.jar
 
 登录请求为 `{"username":"demo_sys_admin","password":"由本地配置提供"}`。响应为 `{code,message,data,requestId}`，data 包含 accessToken、expiresIn=7200 和 user（字符串 id、username、realName、role）。后续请求使用 `Authorization: Bearer <令牌>`，不将令牌放在 URL。过期、无效或停用账号返回 401，角色不足返回 403；校验错误 400、唯一键/约束冲突 409、临时数据库错误 503、未知内部错误 500。错误不返回 SQL、密码或堆栈。
 
-JWT 使用 HS256，有效期两小时，无刷新或即时登出撤销接口。退出只清除客户端令牌，账号停用会在下一次请求阻止访问。后台角色来自数据库，不信任客户端指定角色。微信登录/绑定尚未开放，不提供模拟免密登录。
+JWT 使用 HS256，有效期两小时，无刷新或即时登出撤销接口。退出只清除客户端令牌，账号停用会在下一次请求阻止访问。后台角色来自数据库，不信任客户端指定角色。阶段 5 已新增微信登录/密码绑定，不提供模拟免密登录；未配置微信凭据时该入口返回503。
 
 响应带 X-Request-ID，JSON 含相同追踪标识。日志仅记录请求 ID、方法、状态、耗时和脱敏异常类型；不记录请求体、查询串、JWT 或密码。CORS 拒绝也返回统一 JSON。分页默认 page=1、size=20，上限 100；分页数量保留 JSON 数字，数据库 Long ID 序列化为字符串。分页 DTO 需在未来控制器使用 @Valid，不能跳过校验。
 
@@ -101,7 +101,7 @@ JWT 使用 HS256，有效期两小时，无刷新或即时登出撤销接口。�
 
 验证记录见 [进度记录](../docs/PROGRESS.md)。已实际执行 Java 17 下的 Maven 构建、JUnit 5 测试、真实 MySQL 8 Testcontainers 集成测试，并使用独立 MySQL 启动打包应用和同库重启进行 HTTP 验证。
 
-本阶段未实现微信、小程序、Vue；未执行生产部署和完整安全扫描。预约正确性已用真实并发测试验证，不代表生产性能基准通过。认证限流和更广泛的安全加固仍需后续联调测试阶段处理，不应直接将此基础工程暴露到公网。
+微信、小程序与Vue的最新进展见阶段5说明及进度；未执行生产部署和完整安全扫描。预约正确性已用真实并发测试验证，不代表生产性能基准通过。认证限流和更广泛的安全加固仍需后续联调测试阶段处理，不应直接将此基础工程暴露到公网。
 
 
 ## 阶段 2 管理接口
@@ -123,7 +123,7 @@ JWT 使用 HS256，有效期两小时，无刷新或即时登出撤销接口。�
 
 PATCH 请求区分省略字段和显式 null：例如 {"name":"新名称"} 不会清空 description；{"description":null} 可以清空可空描述。null 不能用于清空名称、地点、状态、启用标记等必填字段。编号、用户名、角色和设备所属实验室为不可变字段，传入返回 400。搜索参数采用字面量包含匹配，固定稳定排序，默认分页 1/20、最大 100。
 
-阶段 2 当时沿用 V1 四表；阶段 3 已新增 V2 预约与审计表，V1 不变，现有开发演示数据可以继续使用。系统未开放学生认证，测试中学生 JWT 仅在隔离环境按本地测试密钥签发，不提供任何免密或模拟微信登录接口。
+阶段 2 当时沿用 V1 四表；阶段 3 已新增 V2 预约与审计表，V1 不变，现有开发演示数据可以继续使用。阶段2/3当时未开放学生认证；阶段5已新增正式微信入口。旧隔离测试保留本地测试JWT，不构成生产登录入口。
 
 ResourceStateGuard 在阶段 3 已由 ReservationResourceStateGuard 实现，FoundationResourceStateGuard 已移除，真实查询有效占用并沿用调用方持有的实验室/设备锁和事务。实验室停用只限制学生可见性，不把设备内部状态批量覆盖；维修、停用设备不会出现在学生查询中。已有有效预约时的资源停用阻断及其与创建的竞争已通过 MySQL 测试。
 
@@ -136,7 +136,7 @@ ResourceStateGuard 在阶段 3 已由 ReservationResourceStateGuard 实现，Fou
 
 V2__create_reservation_tables.sql 创建 reservation、reservation_log。直接启动应用会校验 V1 并应用 V2，禁止修改历史迁移或清库重建。已在保留的阶段 1 隔离开发库验证 V1→V2 升级，演示管理员账号和旧资源仍能访问；微信绑定表不在此迁移中。
 
-新增接口均带 /api/v1：GET /equipment/{id}/slots、POST /reservations、GET /reservations/mine、GET /reservations、GET /reservations/{id}、POST /reservations/{id}/review、/cancel、/revoke、/complete，以及 GET /statistics/overview。完整字段、权限、响应与错误见 API 文档。学生登录仍未开放，不要用管理员令牌冒充学生；自动化测试和隔离 HTTP 验证使用本地测试密钥签发学生 JWT，没有生产免密入口。
+新增接口均带 /api/v1：GET /equipment/{id}/slots、POST /reservations、GET /reservations/mine、GET /reservations、GET /reservations/{id}、POST /reservations/{id}/review、/cancel、/revoke、/complete，以及 GET /statistics/overview。完整字段、权限、响应与错误见 API 文档。阶段5已新增微信学生登录及绑定，不能用管理员令牌冒充学生；旧自动化测试保留隔离JWT，新增认证测试通过绑定取得JWT。
 
 学生提交设备 ID、+08:00 的 startTime/endTime、purpose，必须带 UUID Idempotency-Key。每天 08:00—22:00、半小时粒度、30 分钟至 4 小时、不跨日、开始晚于现在且至多未来 7 天；最多三条有效未结束预约。PENDING 未来时段和 APPROVED 未结束时段占用 [开始,结束)，相邻允许，数据库事务中最终检查交集。相同规范化请求同键重放 200、首次 201、同键不同内容 409。
 
@@ -149,3 +149,19 @@ V2__create_reservation_tables.sql 创建 reservation、reservation_log。直接�
 统计按创建日期范围、当前有效状态和管理员范围从 MySQL 聚合，日期包含两端至多 90 天；趋势逐日补零，热门设备最多十台，只计 APPROVED/COMPLETED，不声称真实利用率。各聚合是 READ COMMITTED 下已提交结果，不承诺并发写入中的冻结快照。
 
 阶段 3 新增 ReservationRulesTest（5 项）及 ReservationCoreIT（32 项），保留旧 66 项。最终共 103 项通过：19 项单元、84 项 MySQL 集成，失败/错误/跳过均 0。完整命令、并发统计、HTTP 及限制见进度记录。实际并发正确性不等于吞吐或 P95 达标；当前没有生产容量基准结论。
+
+## 阶段 5 微信认证与运行
+
+新增匿名POST /api/v1/auth/wechat/login（code）及 /bind（bindTicket、username、password），沿用 /auth/me、JwtService、BCrypt和既有学生预约权限，不修改管理员登录或预约状态机。
+
+WECHAT_APP_ID、WECHAT_APP_SECRET仅由后端环境变量提供，示例留空；缺失时应用仍可启动并供管理员使用，微信登录返回503。不记录code、openid、session_key、票据、密码或上游完整URI；不返回微信敏感字段。正式调用固定官方HTTPS，连接3秒、总请求5秒超时，不跟随重定向，无生产模拟开关。云端官方文档访问被代理403阻止，现行在线正文及真实平台仍需复核。
+
+V3__create_wechat_bind_ticket.sql创建票据摘要、openid、到期/创建时间及过期索引。安全随机256位原票据仅返回一次，5分钟有效，库内SHA-256；成功绑定同事务更新sys_user并删除票据。BCrypt在行锁外计算，锁账号后核对密码哈希未变化，再锁票据；复用V1唯一openid。失败回滚，原绑定不覆盖。清理任务每分钟至多500条过期票据，不需重置数据库。
+
+微信HTTP始终在事务外。绑定只使用账号→票据锁，不在之后获取实验室/设备/预约锁，与原锁顺序兼容。DATABASE原设计“先票据后账号”最小修正为本顺序，统一所有绑定路径；唯一键处理不同学生争用同一微信。
+
+保留原103项用例，仅将两处迁移用例数量/版本预期随V3更新，不删除或跳过测试。新增OfficialWechatClientTest与WechatAuthIT；外部微信用HTTP模拟服务器/可替换客户端测试，MySQL事务与并发使用真实8.0.45。完整verify新增一项通过Node运行miniapp/tests/real-backend.js，需要Node（推荐24.19.0）和完整仓库检出；该适配执行真实HTTP、正式小程序services、MySQL，替换wx运行容器及微信平台，不等于真机编译。
+
+最终test/package/verify、用例数、非破坏V2→V3升级及管理后台回归见PROGRESS。正式微信凭据、合法域名、开发者工具、真机、Windows与完整安全审查未验证，不能据此宣称已上线。
+
+阶段5最终全量verify：30项单元+113项MySQL集成，共143项通过，无失败/错误/跳过；原103项保留。小程序41项逻辑、管理后台36项单元与4项真实浏览器回归通过，官方微信验证边界不变。

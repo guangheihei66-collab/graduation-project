@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "选择预约时段",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "load-state": "/components/load-state/index"
+  }
+}

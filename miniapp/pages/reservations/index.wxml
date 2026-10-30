@@ -1,0 +1,53 @@
+<view class="page"
+  ><view class="heading">我的预约</view
+  ><view class="muted">只显示当前登录学生的记录</view
+  ><view class="card stack"
+    ><picker range="{{statusNames}}" value="{{statusIndex}}" bindchange="status"
+      ><view class="picker">{{statusNames[statusIndex]}} ▾</view></picker
+    ><picker mode="date" value="{{date}}" bindchange="date"
+      ><view class="picker">{{date || '按预约开始日期筛选'}} ▾</view></picker
+    ><input
+      class="input"
+      type="text"
+      maxlength="19"
+      value="{{labId}}"
+      data-field="labId"
+      bindinput="input"
+      placeholder="实验室ID（可选，设备详情可查看）"
+    /><input
+      class="input"
+      type="text"
+      maxlength="19"
+      value="{{equipmentId}}"
+      data-field="equipmentId"
+      bindinput="input"
+      placeholder="设备ID（可选）"
+    /><view class="row"
+      ><button class="primary small" bindtap="search">查询</button
+      ><button class="secondary small" bindtap="clear">清空筛选</button></view
+    ></view
+  ><view
+    wx:for="{{records}}"
+    wx:key="id"
+    class="card"
+    data-id="{{item.id}}"
+    bindtap="open"
+    ><view class="row"
+      ><view class="heading">{{item.equipmentName}}</view
+      ><text class="tag {{item.status}}">{{item.statusText}}</text></view
+    ><view class="muted">{{item.timeText}}</view
+    ><view class="notice">{{item.purpose}}</view
+    ><view class="link">查看详情与操作记录 ›</view></view
+  ><load-state
+    loading="{{loading}}"
+    error="{{error}}"
+    empty="{{!records.length}}"
+    bind:retry="retry"
+  /><button
+    wx:if="{{records.length < total &amp;&amp; !loading}}"
+    class="secondary"
+    bindtap="onReachBottom"
+  >
+    加载更多
+  </button></view
+>

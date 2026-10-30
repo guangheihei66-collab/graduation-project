@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "设备详情",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "load-state": "/components/load-state/index"
+  }
+}
