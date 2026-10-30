@@ -1,0 +1,45 @@
+<view class="page"
+  ><view wx:if="{{lab}}" class="hero"
+    ><view class="eyebrow">{{lab.code}}</view
+    ><view class="title">{{lab.name}}</view
+    ><view class="subtitle">{{lab.location}}</view
+    ><view class="subtitle">{{lab.description || '暂无说明'}}</view></view
+  ><view class="search"
+    ><input
+      class="input"
+      value="{{keyword}}"
+      bindinput="input"
+      bindconfirm="search"
+      placeholder="搜索设备名称 / 资产编号"
+    /><button class="primary small" bindtap="search">搜索</button></view
+  ><picker
+    range="{{categoryNames}}"
+    value="{{categoryIndex}}"
+    bindchange="category"
+    ><view class="picker">{{categoryNames[categoryIndex]}} ▾</view></picker
+  ><view
+    wx:for="{{records}}"
+    wx:key="id"
+    class="card"
+    data-id="{{item.id}}"
+    bindtap="open"
+    ><view class="row"
+      ><view class="pill">{{item.categoryText}}</view
+      ><view class="grow"
+        ><view class="heading">{{item.name}}</view
+        ><view class="muted">{{item.assetNo}} · {{item.location}}</view></view
+      ><text class="tag {{item.status}}">{{item.statusText}}</text></view
+    ></view
+  ><load-state
+    loading="{{loading}}"
+    error="{{error}}"
+    empty="{{!records.length}}"
+    bind:retry="retry"
+  /><button
+    wx:if="{{records.length < total &amp;&amp; !loading}}"
+    class="secondary"
+    bindtap="onReachBottom"
+  >
+    加载更多
+  </button></view
+>

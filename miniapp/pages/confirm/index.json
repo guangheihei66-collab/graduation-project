@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "确认预约",
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "load-state": "/components/load-state/index"
+  }
+}

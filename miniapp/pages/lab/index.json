@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "实验室与设备",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "load-state": "/components/load-state/index"
+  }
+}

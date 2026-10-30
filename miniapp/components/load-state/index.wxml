@@ -1,0 +1,4 @@
+<view wx:if="{{error}}" class="error"
+  >{{error}}<button class="secondary small" bindtap="retry">重试</button></view
+><view wx:elif="{{loading}}" class="empty">正在加载…</view
+><view wx:elif="{{empty}}" class="empty">暂无数据，请调整条件或稍后刷新</view>

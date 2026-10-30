@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "绑定学生账号",
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "load-state": "/components/load-state/index"
+  }
+}

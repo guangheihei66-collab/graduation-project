@@ -182,7 +182,7 @@ class ReservationCoreIT {
   @Test
   void aMigrationAndConstraints() {
     assertEquals(
-        2,
+        3,
         jdbc.queryForObject(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
     long id = seed(e1, s1, "2026-11-03T09:00", "2026-11-03T10:00", "PENDING");

@@ -1,0 +1,24 @@
+<view class="page"
+  ><view class="hero"
+    ><view class="title">确认预约</view
+    ><view class="subtitle">核对设备、时间与用途后提交</view></view
+  ><view wx:if="{{draft}}" class="card"
+    ><view class="heading">{{draft.equipmentName}}</view
+    ><text class="label">开始时间（北京时间）</text><view>{{draft.start}}</view
+    ><text class="label">结束时间</text><view>{{draft.end}}</view
+    ><text class="label">预约用途</text
+    ><view class="value">{{draft.body.purpose}}</view></view
+  ><view wx:if="{{error}}" class="error">{{error}}</view
+  ><button
+    class="primary"
+    loading="{{busy}}"
+    disabled="{{busy || !draft || reselect}}"
+    bindtap="submit"
+  >
+    {{error &amp;&amp; !reselect ? '使用原提交标识重试' : '确认提交'}}</button
+  ><button class="secondary" bindtap="back" disabled="{{busy}}">
+    返回修改 / 重新选择</button
+  ><view class="notice"
+    >网络超时不代表提交失败。同一内容重试保留原幂等键，首次创建与合法重放都从真实服务器获取结果。修改内容后才建立新的提交。</view
+  ></view
+>

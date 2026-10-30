@@ -304,8 +304,8 @@ class FoundationIT {
 
   @Test
   void migrationRepeatAndDataPreserved() {
-    assertEquals(2, flyway.info().applied().length);
-    assertEquals("2", flyway.info().current().getVersion().toString());
+    assertEquals(3, flyway.info().applied().length);
+    assertEquals("3", flyway.info().current().getVersion().toString());
     var restarted = Flyway.configure().dataSource(dataSource).cleanDisabled(true).load();
     assertEquals(0, restarted.migrate().migrationsExecuted);
     restarted.validate();

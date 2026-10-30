@@ -2,7 +2,7 @@
 
 ## 1. 约定与范围
 
-本文件是整体逻辑及物理设计方案。阶段 1 已以 Flyway V1 实现 sys_user、laboratory、lab_admin、equipment 四张基础表；阶段 3 已通过 V2 创建 reservation、reservation_log；wx_bind_ticket 留待阶段 5，尚未建成。采用 MySQL 8、InnoDB、utf8mb4；普通中文文本使用 utf8mb4_0900_ai_ci，账号、编号、openid、幂等键等身份字符串使用大小写敏感的二进制排序规则并在服务端规范化。
+本文件是整体逻辑及物理设计方案。阶段 1 已以 Flyway V1 实现 sys_user、laboratory、lab_admin、equipment 四张基础表；阶段 3 已通过 V2 创建 reservation、reservation_log；阶段 5 已新增 V3 创建 wx_bind_ticket，V1/V2不变。采用 MySQL 8、InnoDB、utf8mb4；普通中文文本使用 utf8mb4_0900_ai_ci，账号、编号、openid、幂等键等身份字符串使用大小写敏感的二进制排序规则并在服务端规范化。
 
 主键为 BIGINT 自增，API 一律以十进制字符串传输，避免 JavaScript 精度丢失。时间使用 DATETIME(3)，存北京时间，created_at、updated_at 非空由应用统一填充。关联使用外键 RESTRICT，禁止级联删除业务历史。不设计通用逻辑删除字段，账号和资源通过停用保留。
 
@@ -123,7 +123,7 @@ erDiagram
 | expires_at | DATETIME(3) | 5 分钟有效期 |
 | created_at | DATETIME(3) | 创建时间 |
 
-索引 (expires_at)。绑定事务锁凭证后验证有效期、学生账号密码和唯一绑定关系，更新账号并删除凭证；失败不创建绑定。过期记录定时清理。该表不保存 session_key 或 AppSecret，不与业务用户建外键，因为凭证产生时尚未匹配账号。
+索引 (expires_at)。绑定先在事务外验证BCrypt，再按账号→票据锁定，锁内重查账号角色/启用/密码哈希、凭证有效期和唯一关系，更新账号并删除票据；失败回滚。过期记录定时清理。该表不保存 session_key 或 AppSecret，不与业务用户建外键，因为凭证产生时尚未匹配账号。
 
 ## 4. 一致性和事务
 
@@ -148,3 +148,11 @@ reservation_log 包含预约和操作者外键、时间及 ID 顺序索引，CHE
 创建和状态日志同事务，日志失败使主表插入或状态变更回滚。SQL 唯一键不能表示任意时间冲突，仍依靠实验室→设备→学生→预约锁顺序及 READ COMMITTED 下的最终查询。过期 PENDING 的有效性由同一个规则函数约束；统计待审批数量也排除已到开始时间的 PENDING，后台任务负责补写 EXPIRED 状态和审计。
 
 幂等键要求标准 UUID 格式并规范为小写，摘要使用 SHA-256，对设备 ID、规范化的北京时间和去首尾空白用途的 JSON 数组计算。幂等键和请求摘要随历史保留，不新增预约删除或过期清理策略。
+
+## 7. 阶段 5 实际迁移
+
+V3__create_wechat_bind_ticket.sql实现3.7表，ticket_hash为SHA-256十六进制主键、wx_openid二进制排序、expires_at索引、到期晚于创建CHECK。票据无用户外键，身份尚未匹配；不保存原始票据、session_key或AppSecret。复用V1的sys_user.wx_openid及唯一/仅学生CHECK，不更改V1/V2。
+
+原3.7“先锁票据”设计修正为统一“账号→票据”：BCrypt先在事务外核验，锁账号后确认哈希未被重置，再锁票据检查严格未过期，更新绑定并消费。绑定之后不获取实验室/设备/预约锁，不与既有顺序逆转。唯一索引防不同账号/不同票据同时绑定同微信；账号行锁防同学生同时绑定多个微信。消费失败整体回滚，已有不同绑定返回冲突。每分钟清理最多500条过期票据，无法按期清理也不影响到期校验。
+
+空库V1+V2+V3、重复migrate和保留开发数据V2→V3升级的实际结果见PROGRESS；不是删除重建正式库。

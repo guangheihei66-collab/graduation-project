@@ -58,7 +58,11 @@ public class SecurityConfig {
                     .accessDeniedHandler((q, s, e) -> errors.write(s, ErrorCode.FORBIDDEN)))
         .authorizeHttpRequests(
             c ->
-                c.requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/auth/login")
+                c.requestMatchers(
+                        org.springframework.http.HttpMethod.POST,
+                        "/api/v1/auth/login",
+                        "/api/v1/auth/wechat/login",
+                        "/api/v1/auth/wechat/bind")
                     .permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/health")
                     .permitAll()

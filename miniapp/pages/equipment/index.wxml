@@ -1,0 +1,33 @@
+<view class="page"
+  ><load-state
+    loading="{{loading}}"
+    error="{{error}}"
+    bind:retry="retry"
+  /><block wx:if="{{item}}"
+    ><view class="hero"
+      ><view class="eyebrow">{{item.categoryText}} / {{item.assetNo}}</view
+      ><view class="title">{{item.name}}</view
+      ><view class="subtitle">{{item.labName}}</view></view
+    ><view class="card"
+      ><view class="row"
+        ><view class="heading">设备信息</view
+        ><text class="tag {{item.status}}">{{item.statusText}}</text></view
+      ><text class="label">设备ID / 实验室ID</text
+      ><view>{{item.id}} / {{item.labId}}</view><text class="label">型号</text
+      ><view>{{item.model || '未填写'}}</view><text class="label">存放位置</text
+      ><view>{{item.location}}</view><text class="label">说明</text
+      ><view class="value">{{item.description || '暂无说明'}}</view></view
+    ><view class="card"
+      ><view class="heading">预约须知</view
+      ><view class="notice"
+        >每日08:00—22:00，半小时起约，单次不超过4小时。开始须晚于当前时间且不晚于未来7天，每人最多3条有效预约。申请待审批也占用时段。</view
+      ><button
+        class="primary"
+        bindtap="reserve"
+        disabled="{{item.status !== 'AVAILABLE' || loading || !!error}}"
+      >
+        选择预约时段
+      </button></view
+    ></block
+  ></view
+>
